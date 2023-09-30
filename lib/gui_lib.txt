@@ -1,0 +1,237 @@
+--@name Gui Lib
+--@author yeet_sneet
+--@client
+--@include modules/hotkey_module.txt
+local GuiLib = {}
+    
+local HotKey = dofile("modules/hotkey_module.txt")
+local function pointInBox (x,y,boxData) --boxData = { x, y, w, h }
+    if not ( x >= boxData[1] and x <= (boxData[1] + boxData[3]) ) then return false end
+    if not ( y >= boxData[2] and y <= (boxData[2] + boxData[4]) ) then return false end
+    return true
+end
+    
+local function foreach(tab,func)
+    for i=1, #tab do
+        if func(tab[i],i) == -1 then 
+            return 
+        end
+    end
+end
+    
+local mx, my = input.getCursorPos()
+local TypingIDX = nil
+local codeToKey = {}
+for keyn, code in pairs(KEY) do
+    codeToKey[code] = keyn
+end
+    
+local function drawBoxWText(x,y,w,h,text,BoxColor,textColor)
+    render.setColor(BoxColor)
+    --render.drawRoundedBox(10, x, y, w, h)
+    render.drawRectFast(x, y, w, h)
+    render.setColor(textColor)
+    render.drawSimpleText((x+w/2), (y+h/2), text, TEXT_ALIGN.CENTER, TEXT_ALIGN.CENTER)
+end    
+local function drawUi()
+    if not UIRender then return end
+    foreach(GuiLib.DrawUi["button"], function (ui,idx)
+        drawBoxWText(ui[1], ui[2], ui[3], ui[4], ui[5], ui[7], ui[8])
+    end)
+    foreach(GuiLib.DrawUi["toggle"], function (ui,idx)
+        if ui[7] then
+            drawBoxWText(ui[1], ui[2], ui[3], ui[4], ui[5], ui[8], ui[10])
+        else
+            drawBoxWText(ui[1], ui[2], ui[3], ui[4], ui[5], ui[9], ui[10])
+        end
+    end)
+    foreach(GuiLib.DrawUi["textInp"], function (ui,idx) 
+        drawBoxWText(ui[1], ui[2], ui[3], ui[4], ui[5], ui[7], ui[8])
+    end)
+    foreach(GuiLib.DrawUi["numberInp"], function (ui,idx) 
+        drawBoxWText(ui[1], ui[2], ui[3], ui[4], ui[5], ui[7], ui[8])
+    end)
+end
+local function charInString(str,char) 
+    for i=1, string.len(str) do
+        if str[i] == char then
+            return true
+        end
+    end
+    return false
+end
+local LastMou, typingType
+local function UiInteract()
+    UIRender = HotKey.ActiveKeys[GuiLib.ActivateKey] or IsTyping
+    mx, my = input.getCursorPos()
+    if IsTyping and typingType=="text" then
+        local text = GuiLib.DrawUi["textInp"][TypingIDX][5]
+        if text == nil then IsTyping = false input.lockControls(false) print("invalid textObj") end
+        local shift = HotKey.ActiveKeys[79] or HotKey.ActiveKeys[80]
+        foreach(HotKey.PressedKeys,function (keycode)
+            local key = codeToKey[keycode]
+            if key == nil then return end
+            if key == "ENTER" then
+                IsTyping = false 
+                input.lockControls(false)
+                GuiLib.DrawUi["textInp"][TypingIDX][6](GuiLib.DrawUi["textInp"][TypingIDX][5])
+                return -1
+            end
+            if key == "BACKSPACE" and string.len(GuiLib.DrawUi["textInp"][TypingIDX][5]) > 0 then
+                GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5]:sub(1, -2) 
+                return
+            end
+            if key == "SPACE" then
+                GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5] .. " "
+            end
+            if keycode <= 10 then -- numbers
+                if shift then
+                    GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5] .. (")!@#$%^&*(")[keycode]
+                else
+                    GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5] .. keycode-1
+                end
+                return
+            end
+            if string.len(key) == 1 then
+                if shift then
+                    GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5] .. key
+                else
+                    GuiLib.DrawUi["textInp"][TypingIDX][5] = GuiLib.DrawUi["textInp"][TypingIDX][5] .. string.lower(key)
+                end
+            end
+        end)
+        HotKey.PressedKeys = {}
+        return
+    end
+    if IsTyping and typingType=="number" then
+        foreach(HotKey.PressedKeys,function (keycode)
+            local stringData = GuiLib.DrawUi["numberInp"][TypingIDX][5]
+            local strLen = string.len(stringData)
+            if stringData == nil then IsTyping = false input.lockControls(false) print("invalid numberObj") return -1 end
+            if keycode == 64 then -- enter
+                local inp = stringData
+                if inp == "" or inp == "-" then inp = 0 end
+                local num = tonumber(inp)
+                IsTyping = false 
+                input.lockControls(false)
+                GuiLib.DrawUi["numberInp"][TypingIDX][6](num)
+            end
+            if keycode == 66 and strLen > 0 then -- backspace
+                GuiLib.DrawUi["numberInp"][TypingIDX][5] = stringData:sub(1, -2)
+            end
+            if keycode == 62 and strLen == 0 and GuiLib.DrawUi["numberInp"][TypingIDX][9] then
+                GuiLib.DrawUi["numberInp"][TypingIDX][5] = stringData .. "-"
+            end
+            if keycode == 59 and not charInString(stringData,".") and GuiLib.DrawUi["numberInp"][TypingIDX][10] then
+                GuiLib.DrawUi["numberInp"][TypingIDX][5] = stringData .. "."
+            end
+            
+            if keycode <= 10 then -- 0-9
+                GuiLib.DrawUi["numberInp"][TypingIDX][5] = stringData .. keycode-1
+            end
+        end)
+        HotKey.PressedKeys = {}
+    end
+    if not UIRender then return end
+    local mouse = input.isMouseDown(107)
+    if mouse ~= LastMou then 
+        LastMou = mouse 
+        if mouse then 
+            foreach(GuiLib.DrawUi["button"], function (ui,idx)
+                if not pointInBox(mx, my,{ui[1], ui[2], ui[3], ui[4]}) then return end
+                ui[6]()
+                return -1 -- break
+            end)
+            foreach(GuiLib.DrawUi["toggle"], function (ui,idx)
+                if not pointInBox(mx, my,{ui[1], ui[2], ui[3], ui[4]}) then return end
+                GuiLib.DrawUi["toggle"][idx][7] = not ui[7]
+                ui[6](GuiLib.DrawUi["toggle"][idx][7])
+                return -1 -- break
+            end)
+            foreach(GuiLib.DrawUi["textInp"], function (ui,idx)
+                if not pointInBox(mx, my,{ui[1], ui[2], ui[3], ui[4]}) then return end
+                if input.canLockControls() then
+                    TypingIDX = idx
+                    IsTyping = true
+                    typingType = "text"
+                    HotKey.PressedKeys = {}
+                    input.lockControls(true)
+                else
+                    print("plz wait for lockControls to be unblocked")
+                end
+                return -1 -- break
+            end)
+            foreach(GuiLib.DrawUi["numberInp"], function (ui,idx)
+                if not pointInBox(mx, my,{ui[1], ui[2], ui[3], ui[4]}) then return end
+                if input.canLockControls() then
+                    TypingIDX = idx
+                    IsTyping = true
+                    typingType = "number"
+                    HotKey.PressedKeys = {}
+                    input.lockControls(true)
+                else
+                    print("plz wait for lockControls to be unblocked")
+                end
+                return -1 -- break
+            end)
+        end
+    end
+end
+local function checkArgs(...)
+    foreach({...},function (val,idx)
+        if val == nil then
+            error("invalid Args")
+            return -1
+        end
+    end)
+end
+GuiLib.DrawUi = {
+    ["button"] = {},
+    ["toggle"] = {},
+    ["textInp"] = {},
+    ["numberInp"] = {}
+} 
+GuiLib.ActivateKey = 13
+GuiLib.UIRender = false
+GuiLib.IsTyping = false
+GuiLib.copyPage =  function ()
+    return GuiLib.DrawUi   
+end
+GuiLib.loadPage = function(NewUi)
+    GuiLib.DrawUi = NewUi
+end
+GuiLib.clearPage = function ()
+    GuiLib.DrawUi = {
+        ["button"] = {},
+        ["toggle"] = {},
+        ["textInp"] = {},
+        ["numberInp"] = {}
+    }   
+end
+GuiLib.newButton =  function (x,y,w,h,text,BoxColor,textColor,func)
+    checkArgs(x,y,w,h,text,BoxColor,textColor,func)
+    table.insert(GuiLib.DrawUi["button"],{x,y,w,h,text,func,BoxColor,textColor})
+end
+GuiLib.newToggle = function (x,y,w,h,text,defaltVal,OnColor,Offcolor,textColor,func)
+    checkArgs(x,y,w,h,text,defaltVal,OnColor,Offcolor,textColor,func)
+    table.insert(GuiLib.DrawUi["toggle"],{x,y,w,h,text,func,defaltVal,OnColor,Offcolor,textColor})
+end
+GuiLib.newTextInp = function (x,y,w,h,text,BoxColor,textColor,func)
+    checkArgs(x,y,w,h,text,BoxColor,textColor,func)
+    table.insert(GuiLib.DrawUi["textInp"],{x,y,w,h,text,func,BoxColor,textColor})
+end
+GuiLib.newNumberInp = function (x,y,w,h,number,BoxColor,numberColor,CanGoNeg,CanGodecimal,func)
+    checkArgs(x,y,w,h,number,BoxColor,numberColor,CanGoNeg,func)
+    table.insert(GuiLib.DrawUi["numberInp"],{x,y,w,h,number,func,BoxColor,numberColor,CanGoNeg,CanGodecimal})
+end
+GuiLib.RemoveHooks = function () 
+    hook.remove("GuiLib_Input")
+    hook.remove("GuiLib_Render")
+end
+
+GuiLib.start = function ()
+    hook.add("tick","GuiLib_Input", UiInteract)
+    hook.add("drawhud", "GuiLib_Render", drawUi)
+end
+
+return GuiLib, HotKey

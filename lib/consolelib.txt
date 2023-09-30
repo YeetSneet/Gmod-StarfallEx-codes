@@ -1,0 +1,135 @@
+--@name consoleLib
+--@author yeet_sneet
+--@client
+
+local Lib = {}
+Lib.speed = false
+Lib.left = false
+Lib.right = false
+Lib.forward = false
+Lib.backward = false
+Lib.jumping = false
+Lib.ducking = false
+
+Lib.startJump = function ()
+    if not Lib.jumping then
+        Lib.jumping = true
+        concmd("+jump")
+    end
+end
+
+Lib.stopJump = function ()
+    if Lib.jumping then
+        Lib.jumping = false
+        concmd("-jump")
+    end
+end
+
+Lib.startDuck = function ()
+    if not Lib.ducking then
+        Lib.ducking = true
+        concmd("+duck")
+    end
+end
+
+Lib.stopDuck = function ()
+    if Lib.ducking then
+        Lib.ducking = false
+        concmd("-duck")
+    end
+end
+
+Lib.moveLeft = function ()
+    if not Lib.left then
+        Lib.left = true
+        concmd("+moveleft")
+    end
+    if Lib.right then
+        Lib.right = false
+        concmd("-moveright")
+    end
+end
+
+Lib.moveForward = function ()
+    if not Lib.forward then
+        Lib.forward = true
+        concmd("+forward")
+    end
+    if Lib.backward then
+        Lib.backward = false
+        concmd("-backward")
+    end
+end
+
+Lib.moveBackward = function ()
+    if not Lib.backward then
+        Lib.backward = true
+        concmd("+backward")
+    end
+    if Lib.foward then
+        Lib.forward = false
+        concmd("-forward")
+    end
+end
+
+Lib.moveRight = function ()
+    if not Lib.right then
+        Lib.right = true
+        concmd("+moveright")
+    end
+    if Lib.left then
+        Lib.left = false
+        concmd("-moveleft")
+    end
+end
+
+Lib.SpeedStart = function ()
+    if not Lib.Speed then
+        Lib.Speed = true
+        concmd("+speed")
+    end
+end
+Lib.SpeedStop = function ()
+    if Lib.Speed then
+        Lib.Speed = false
+        concmd("-speed")
+    end
+end
+Lib.moveResetLR = function ()
+    if Lib.left or Lib.right then
+        Lib.left = false
+        Lib.right = false
+        concmd("-moveleft ; -moveright")
+    end
+end
+
+Lib.moveResetFB = function ()
+    if Lib.foward or Lib.backward then
+        Lib.backward = false
+        Lib.foward = false
+        concmd("-forward ; -backward")
+    end
+end
+
+Lib.moveReset = function () 
+    if Lib.left or Lib.right or Lib.foward or Lib.backward then
+        Lib.left = false
+        Lib.right = false
+        Lib.backward = false
+        Lib.foward = false
+        concmd("-moveleft ; -moveright ; -forward ; -backward")
+    end
+end
+
+Lib.ResetAll = function ()
+    Lib.left = false
+    Lib.speed = false
+    Lib.right = false
+    Lib.forward = false
+    Lib.backward = false
+    Lib.jumping = false
+    Lib.ducking = false
+    concmd("-moveleft ; -moveright ; -forward ; -backward ; -jump ; -duck ; -speed")
+end
+
+return Lib

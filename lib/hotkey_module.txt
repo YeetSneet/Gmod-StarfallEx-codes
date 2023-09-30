@@ -1,0 +1,81 @@
+--@name hotKey module
+--@author yeet_sneet
+
+-- Hotkey.Create(keyCodes , function) -- returns hotkey index -- keyCodes is a list or a number  -- https://wiki.facepunch.com/gmod/Enums/KEY
+-- Hotkey.Change(index, keyCodes) -- changes hotkey keyCodes
+-- Hotkey.Remove(index) -- removes hotkey
+-- Hotkey.RemoveAll()  --removes all hotkeys
+-- Hotkey.RemoveHooks() --removes hooks that the module is using
+local Hotkey = {}
+
+Hotkey.hotKeys = {}
+Hotkey.ActiveKeys = {}
+Hotkey.PressedKeys = {} -- for you
+Hotkey.Create = function (keyCodes, func) 
+    if type(keyCodes) == "number" then
+        table.insert(Hotkey.hotKeys, {{keyCodes},func}) return #Hotkey.hotKeys
+    end
+    if #keyCodes == 0 then return end
+    table.insert(Hotkey.hotKeys, {keyCodes,func})
+    return #Hotkey.hotKeys
+end
+    
+Hotkey.Change = function (idx, keyCodes)
+    if idx > #Hotkey.hotKeys then return end
+    local Data = Hotkey.hotKeys[idx]
+    if type(keyCodes) == "number" then
+        Data[1] = {keyCodes}
+    else
+        if #keyCodes == 0 then return end
+        Data[1] = keyCodes
+    end
+    Hotkey.hotKeys[idx] = Data
+end
+    
+Hotkey.Remove = function (idx)
+    if idx > #Hotkey.hotKeys then return end
+    Hotkey.hotKeys[idx] = nil
+end
+
+Hotkey.RemoveAll = function () 
+    for i=1, #Hotkey.hotKeys do
+        Hotkey.hotKeys[i] = nil    
+    end
+end 
+   
+local function checkKey(keys)
+    for i=1, #keys do
+        if Hotkey.ActiveKeys[ keys[i] ] != true then
+            return false
+        end
+    end
+    return true
+end
+
+local function TContains(tab, val) 
+    for i=1, #tab do
+        if tab[i] == val then
+            return true
+        end
+    end
+    return false
+end
+  
+hook.add("inputPressed", "Hotkey_Pressed", function(key)
+    Hotkey.ActiveKeys[key] = true
+    table.insert(Hotkey.PressedKeys, key)
+    for i=1, #Hotkey.hotKeys do
+        local data = Hotkey.hotKeys[i]
+        if data == nil then continue end
+        local keys = data[1]
+        if not TContains(keys, key) then continue end
+        if checkKey(keys) then data[2]() end
+    end
+end)
+        
+hook.add("inputReleased", "Hotkey_KeyReleased", function(key)
+    Hotkey.ActiveKeys[key] = false
+end)
+Hotkey.Dict = {}
+Hotkey.RemoveHooks = function () hook.remove("Hotkey_Pressed") hook.remove("Hotkey_KeyReleased") end
+return Hotkey
