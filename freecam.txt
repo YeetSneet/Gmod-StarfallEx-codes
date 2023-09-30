@@ -1,0 +1,118 @@
+--@name freeCam
+--@author yeet_sneet
+--@shared
+--@include hotkey_module.txt
+if CLIENT and player() == owner() then
+    
+    enableHud(nil,true)
+    setupPermissionRequest({"console.command"},"for console commands",true)
+    sendPermissionRequest()
+    
+    hook.add("permissionrequest", "permission", function()
+        local FreeCam = false
+        local FreeCamSpeed = 20
+        local FreeCamAng = eyeAngles()
+        local FreeCamPos = owner():getShootPos()
+        HK = dofile("modules/hotkey_module.txt")
+        HK.Create({81,33}, function () FreeCam = !FreeCam if FreeCam then FreeCamPos = owner():getShootPos() end end)
+        HK.Create({15}, function ()  if FreeCam then net.start("set") net.writeVector(FreeCamPos) net.send(nil) timer.create("wait for my bullshit",0.001, 1, function() FreeCam = false end) end end) 
+        HK.Create({81,88}, function () FreeCamSpeed = FreeCamSpeed + 5 end)
+        HK.Create({81,90}, function () FreeCamSpeed = FreeCamSpeed - 5 end)
+        HK.Create(33, function () if FreeCam then concmd("-forward") end end)
+        HK.Create(29, function () if FreeCam then concmd("-back") end end)
+        HK.Create(11, function () if FreeCam then concmd("-moveleft") end end)
+        HK.Create(14, function () if FreeCam then concmd("-moveright") end end)
+        hook.add( "calcview", "MyCalcViewSpec", function (pos, ang, fov, znear, zfar)
+            local view = {
+                origin = pos,
+                angles = ang,
+                znear = znear,
+                zfar = zfar,
+                fov = fov,
+                drawviewer = false
+            }
+            if FreeCam then
+                view["origin"] = FreeCamPos
+                view["angles"] = ang
+                FreeCamAng = ang
+                view["drawviewer"] = true
+                return view
+            end
+        end)
+        local function BTN(bool)
+            if bool == true then
+                return 1
+            else
+                return 0
+            end    
+        end
+        hook.add("tick","controls", function ()
+            if not FreeCam then return end
+            local P = Vector()
+            if HK.ActiveKeys[33] == true then
+                P = P + FreeCamAng:getForward()
+            end
+            if HK.ActiveKeys[29] == true then
+                P = P + (-FreeCamAng:getForward())
+            end
+            if HK.ActiveKeys[14] == true then
+                P = P + FreeCamAng:getRight()
+            end
+            if HK.ActiveKeys[11] == true then
+                P = P + (-FreeCamAng:getRight())
+            end
+            if not P:isZero() then
+                P:normalize()
+                FreeCamPos = FreeCamPos + P * FreeCamSpeed * (BTN(HK.ActiveKeys[79])+1)
+            end
+        end)
+        hook.add("net","fromSever", function (name, len, ply)
+            local Vec = net.readVector()
+            if name == "goto Player" then FreeCamPos = Vec end
+        end)
+    end)
+end
+if SERVER then
+    local function chatCommand(CmdData,cmd,ArgTypes,Func)
+        local d = CmdData
+        local c = CmdData[1]
+        table.remove(d,1)
+        if c ~= cmd then return end
+        if #d ~= #ArgTypes then print("arg num error") return end
+        for i=1, #d do
+            local f = d[i]
+            if type(f) ~= ArgTypes[i] then
+                print("arg type error") return    
+            end
+        end
+        Func(unpack(d))
+    end
+    hook.add("PlayerSay","chatCommands", function (ply, text, teamChat)
+        if ply != owner() then return end 
+        if text[1] != "." then return end
+        local CmdData = string.split(text," ")
+        
+        chatCommand(CmdData,".goto",{"string"},function (arg) 
+            local ply = find.playersByName(arg,false,false)[1]
+            if ply == nil then return end
+            if isValid(ply) then 
+                net.start("goto Player") 
+                net.writeVector(ply:getShootPos()) 
+                net.send(nil) 
+            end 
+        end)
+        
+        return ""
+    end)
+    hook.add("net","setpos", function (name, len, ply)
+        if not name == "set" then return end
+        if ply != owner() then return end
+        Vec = net.readVector()
+        SV = Vec+Vector(0,0,50)
+        Ray = trace.line(SV, Vec-Vector(0,0,300), nil, nil , nil , false)
+        Dis = Ray.HitPos:getDistance(SV)
+        if Dis > 0 then
+            owner():setPos(Ray.HitPos)
+        end
+    end)
+end
