@@ -1,0 +1,112 @@
+--@name rainBow Rays
+--@author yeet_sneet
+--@client
+
+if player() ~= owner() then return end
+
+enableHud(nil, true)
+
+local function UTT(ups) -- Ups To Time
+    return (1/ups)
+end
+
+
+-- raySettings
+
+-- if your fps is low then increse rayUpdateRate or turn on OUOM
+local maxRays = 25
+local maxDist = 5000
+local OUOM = false -- Only Update On Move
+local rayUpdateRate = UTT(30)
+
+
+-- color settings
+local colorUpdateRate = UTT(40)
+local rainbowDuration = 3
+
+
+
+local Beams = {}
+local startTime = timer.curtime()
+local oldPos = Vector(0,0,0)
+local oldDir = Vector(0,0,0)
+
+
+local function hslToRgb(h, s, l) -- from chat gpt
+    local function hue2rgb(p, q, t)
+        if t < 0 then t = t + 1 end
+        if t > 1 then t = t - 1 end
+        if t < 1/6 then return p + (q - p) * 6 * t end
+        if t < 1/2 then return q end
+        if t < 2/3 then return p + (q - p) * (2/3 - t) * 6 end
+        return p
+    end
+
+    if s == 0 then return l, l, l end
+
+    local q = l < 0.5 and l * (1 + s) or l + s - l * s
+    local p = 2 * l - q
+
+    local r = hue2rgb(p, q, h + 1/3)
+    local g = hue2rgb(p, q, h)
+    local b = hue2rgb(p, q, h - 1/3)
+
+    return Color(r*255, g*255, b*255)
+end
+
+local function generateRainbowColorWithTime(steps, duration) -- from chat gpt
+    local colors = {}
+    local currentTime = timer.curtime()
+    local tm = (duration/steps)
+    for i = 1, steps do
+        local elapsed = (currentTime+ i*tm) - startTime
+        local hue = (elapsed % duration) / duration  -- Vary the hue based on time
+        local saturation = 1
+        local lightness = 0.5
+        table.insert(colors, hslToRgb(hue, saturation, lightness))
+    end
+
+    return colors
+end
+
+
+local rainbowColors = generateRainbowColorWithTime(maxRays, rainbowDuration)
+timer.create("rainbow", colorUpdateRate, 0, function () 
+    rainbowColors = generateRainbowColorWithTime(maxRays, rainbowDuration)
+end)
+
+timer.create("makeRays", rayUpdateRate, 0, function () 
+    local RayPos = chip():getPos()
+    local RayDir = chip():getForward()
+    if OUOM and (RayDir == oldDir) and (RayPos == oldPos) then 
+        oldDir = RayDir
+        oldPos = RayPos
+        return 
+    end
+    oldDir = RayDir
+    oldPos = RayPos
+    Beams = {}
+    for i=1, maxRays do
+        local ray = trace.line(RayPos, RayPos+RayDir*maxDist, function(e) return e~=chip() end, MASK.SHOT, nil, false)
+        if not ray.Hit then return end
+        
+        local norm = ray.HitNormal
+        local hitP = ray.HitPos
+        
+        RayDir = (RayDir - 2 * RayDir:dot(norm) * norm)
+        Beams[i] = {RayPos,hitP}
+        RayPos = hitP
+    end
+end)
+
+hook.add("drawHud", "drawRays", function () 
+    for key, v in pairs(Beams) do
+        render.setColor(rainbowColors[key])
+        local sp = v[1]:toScreen()
+        local ep = v[2]:toScreen()
+        if not sp.visible and not ep.visible then continue end
+        local x1, y1 = sp.x, sp.y
+        local x2, y2 = ep.x, ep.y
+        render.drawLine(x1, y1, x2, y2)
+    end
+end)
