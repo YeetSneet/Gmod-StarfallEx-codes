@@ -13,7 +13,7 @@ end
 
 -- raySettings
 
--- if your fps is low then increse rayUpdateRate or turn on OUOM
+-- if your fps is low then lower rayUpdateRate or turn on OUOM
 local maxRays = 25
 local maxDist = 5000
 local OUOM = false -- Only Update On Move
